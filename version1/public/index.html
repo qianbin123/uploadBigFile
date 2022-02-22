@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <input type="file" id="btnFile"/>
+  <input type="button" onclick="upload(0)" value="上传"/>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script>
+    let btnFile = document.querySelector('#btnFile');
+    let chunkSize = 1024;   // 每片 1KB
+
+    function upload(index){
+      let file = btnFile.files[0];
+      let [ fname, fext ] = file.name.split('.');
+
+      let start = index * chunkSize;
+      // 没有内容则停止递归
+      if(start > file.size){
+        merge(file.name);
+        return;
+      }
+
+      let blob = file.slice(start, start + chunkSize);
+      let blobName = `${fname}.${index}.${fext}`;
+      let blobFile = new File([blob], blobName);
+
+      let formData = new FormData();
+      formData.append('file', blobFile);
+
+      axios.post('/upload', formData).then(res => {
+        upload(++index);
+        console.log(res)
+      });
+    }
+
+    function merge(name){
+      axios.post('/merge', {name: name}).then(res => {
+        console.log(res)
+      });
+    }
+  </script>
+</body>
+</html>
