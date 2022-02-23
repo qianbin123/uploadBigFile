@@ -29,7 +29,8 @@ app.post('/upload', function(req, res){
     // 原文件名.index.ext（分片按照索引编号，再次命名）
     var dPath = path.join(chunkDir, chunk.originalFilename.split('.')[1]);
     // 将分片从临时目录移动到文件同名的存放目录
-    // await fse.move(chunk.path, dPath, {overwrite: true});
+    console.log('path:', chunk.path, dPath);
+    await fse.move(chunk.path, dPath, {overwrite: true});
     res.send('文件上传成功');
   });
 })
