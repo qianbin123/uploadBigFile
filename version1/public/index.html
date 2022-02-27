@@ -9,10 +9,11 @@
 <body>
   <input type="file" id="btnFile"/>
   <input type="button" onclick="upload(0)" value="上传"/>
+  <p id="count"></p>
   <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
   <script>
     let btnFile = document.querySelector('#btnFile');
-    let chunkSize = 1024;   // 每片 1KB
+    let chunkSize = 1024 * 1024;   // 每片 1KB
 
     function upload(index){
       let file = btnFile.files[0];
@@ -34,7 +35,8 @@
 
       axios.post('/upload', formData).then(res => {
         upload(++index);
-        console.log(res)
+        console.log(res);
+        document.getElementById('count').innerHTML = res.data.process;
       });
     }
 

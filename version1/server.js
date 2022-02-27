@@ -13,6 +13,7 @@ app.use(bodyParser.json());
 
 // 服务端把所有分片放到同一个目录里（服务端应该把所有分片放到一个统一目录里）
 const UPLOAD_DIR = path.resolve(__dirname, 'public/upload');
+let processNum = 0;
 
 app.post('/upload', function(req, res){
   const form = new multiparty.Form({uploadDir: 'temp'});        // multiparty用来处理上传文件的，定义存储目录为temp
@@ -31,7 +32,9 @@ app.post('/upload', function(req, res){
     // 将分片从临时目录移动到文件同名的存放目录
     console.log('path:', chunk.path, dPath);
     await fse.move(chunk.path, dPath, {overwrite: true});
-    res.send('文件上传成功');
+    res.send({
+      process: ++processNum
+    });
   });
 })
 
@@ -51,6 +54,7 @@ app.post('/merge', async (req, res) => {
   });
 
   fse.removeSync(chunkDir);
+  processNum = 0;
   res.send({
     msg: '合并成功',
     url: `http://localhost:3000/upload/${name}`

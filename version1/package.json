@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "server": "node server.js",
-    "client": "cd /public && hs -p 8088 -P http://127.0.0.1:3000"
+    "client": "cd public && hs -p 8088 -P http://127.0.0.1:3000"
   },
   "keywords": [],
   "author": "",

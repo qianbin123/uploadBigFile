@@ -1,0 +1,175 @@
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>大文件并发上传示例</title>
+    <script src="https://cdn.bootcdn.net/ajax/libs/axios/0.21.1/axios.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/spark-md5/3.0.0/spark-md5.min.js"></script>
+  </head>
+  <body>
+    <input type="file" id="uploadFile" />
+    <button id="submit" onclick="uploadFile()">上传文件</button>
+    <script>
+      /**
+       * 参考：https://mp.weixin.qq.com/s/-iSpCMaLruerHv7717P0Wg
+       * 实现：
+       * 1、文件秒传（借助md5）
+       * 2、文件分片（通过Blob.slice）
+       * 3、断点续传（通过再次点击上传，后端会把已经上传成功的片段下标ID回传给前端，前端可以根据这个来判断是否还需要上传）
+       * 4、并发请求（通过Promise.all实现）
+       * 5、进度条（目前代码没加上，不过只需要在每片上传服务器后，返回百分比就行，如果不反回，前端自己计算也没问题）
+      */
+      const uploadFileEle = document.querySelector("#uploadFile");
+
+      const request = axios.create({
+        baseURL: "http://localhost:3000/upload",
+        timeout: 10000,
+      });
+
+      // 计算MD5的值
+      function calcFileMD5(file) {
+        return new Promise((resolve, reject) => {
+          let chunkSize = 2097152; // 追加到md5缓存中的片段大小
+          let chunks = Math.ceil(file.size / chunkSize);
+          let currentChunk = 0;
+          let spark = new SparkMD5.ArrayBuffer();
+          let fileReader = new FileReader();
+
+          // 等 readAsArrayBuffer 读取完异步触发
+          fileReader.onload = (e) => {
+            // 追加array buffer
+            spark.append(e.target.result);
+            currentChunk++;
+            // 读取完一片继续读取下一片
+            if (currentChunk < chunks) {
+              loadNext();
+            } else {
+              // spark.end() 计算hash
+              resolve(spark.end());
+            }
+          };
+
+          fileReader.onerror = (e) => {
+            reject(fileReader.error);
+            reader.abort();
+          };
+
+          // 加载下一片段
+          function loadNext() {
+            let start = currentChunk * chunkSize;
+            let end = start + chunkSize >= file.size ? file.size : start + chunkSize;
+            fileReader.readAsArrayBuffer(file.slice(start, end));
+          }
+          loadNext();
+        });
+      }
+
+      // 检查文件是否已经存在服务器
+      function checkFileExist(url, name, md5) {
+        return request
+          .get(url, {
+            params: {
+              name,
+              md5,
+            },
+          })
+          .then((response) => response.data);
+      }
+
+      // 向后端上传文件片段
+      function upload({ url, file, fileMd5, fileSize, chunkSize, chunkIds, poolLimit = 1}) {
+        const chunks = typeof chunkSize === "number" ? Math.ceil(fileSize / chunkSize) : 1;
+
+        // [...new Array(chunks).keys()] => [0, 1, 2, 3, 4, X, X.....]
+        return asyncPool(poolLimit, [...new Array(chunks).keys()], (i) => {
+          // 已上传的分块直接跳过
+          if (chunkIds.indexOf(i + "") !== -1) {
+            return Promise.resolve();
+          }
+          // 没上传的部分计算出，开始和结束位置的偏移，以及对应的文件片段
+          let start = i * chunkSize;
+          let end = i + 1 == chunks ? fileSize : (i + 1) * chunkSize;
+          // File.slice继承了Blob.slice
+          const chunk = file.slice(start, end);
+
+          return uploadChunk({
+            url,
+            chunk,
+            chunkIndex: i,
+            fileMd5,
+            fileName: file.name,
+          });
+        });
+      }
+
+      async function asyncPool(poolLimit, array, iteratorFn) {
+        const ret = [];
+        const executing = [];
+
+        for (const item of array) {
+          // 生成Promise对象，并且then内部函数在当前宏任务执行结束前触发
+          const p = Promise.resolve().then(() => iteratorFn(item));
+          ret.push(p);
+
+          if (poolLimit <= array.length) {
+            const e = p.then(() => executing.splice(executing.indexOf(e), 1));
+            executing.push(e);
+            if (executing.length >= poolLimit) {
+              await Promise.race(executing);
+            }
+          }
+        }
+        // 并发上传文件片段
+        return Promise.all(ret);
+      }
+
+      // 向后端发出整合文件片段请求
+      function concatFiles(url, name, md5) {
+        return request.get(url, {
+          params: {
+            name,
+            md5,
+          },
+        });
+      }
+
+      async function uploadFile() {
+        if (!uploadFileEle.files.length) return;
+        const file = uploadFileEle.files[0]; // 获取待上传的文件
+        const fileMd5 = await calcFileMD5(file); // 计算文件的MD5
+        const fileStatus = await checkFileExist(
+          // 判断文件是否已存在
+          "/exists",
+          file.name,
+          fileMd5
+        );
+        // 如果文件在服务器端已经存在（并且内容木有被修改 <= 通过md5），则直接提示用户上传成功
+        if (fileStatus.data && fileStatus.data.isExists) {
+          alert("文件已上传[秒传]");
+          return;
+        } else {
+          await upload({
+            url: "/single",
+            file,
+            fileMd5,
+            fileSize: file.size,
+            chunkSize: 1 * 1024 * 1024,       // 上传的文件片段的大小
+            chunkIds: fileStatus.data.chunkIds,  //断点续传时候用，返回哪些片段已经上传成功的下标
+            poolLimit: 3,
+          });
+        }
+        await concatFiles("/concatFiles", file.name, fileMd5);
+      }
+
+      // 真正的发送文件片段
+      function uploadChunk({ url, chunk, chunkIndex, fileMd5, fileName }) {
+        let formData = new FormData();
+        formData.set("file", chunk, fileMd5 + "-" + chunkIndex);
+        formData.set("name", fileName);
+        formData.set("timestamp", Date.now());
+        return request.post(url, formData);
+      }
+    </script>
+  </body>
+</html>
