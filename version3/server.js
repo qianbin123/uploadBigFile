@@ -20,14 +20,12 @@ const IGNORES = [".DS_Store"]; // 忽略的文件列表
 // multer用法：https://blog.csdn.net/qq_42778001/article/details/104442163
 const storage = multer.diskStorage({
   destination: async function (req, file, cb) {
-    debugger;
     let fileMd5 = file.originalname.split("-")[0];
     const fileDir = path.join(TMP_DIR, fileMd5);
     await fse.ensureDir(fileDir);
     cb(null, fileDir);
   },
   filename: function (req, file, cb) {
-    debugger;
     let chunkIndex = file.originalname.split("-")[1];
     cb(null, `${chunkIndex}`);
   },
@@ -110,7 +108,6 @@ async function concatFiles(sourceDir, targetPath) {
         .on("error", reject);
     });
   const files = await readdir(sourceDir);
-  console.log(files);
   // 对临时文件中的文件上传片段进行排序
   const sortedFiles = files
     .filter((file) => {
@@ -125,7 +122,7 @@ async function concatFiles(sourceDir, targetPath) {
     let filePath = path.join(sourceDir, file);
     // 将 filePath 写入到 writeStream
     await readFile(filePath, writeStream);
-    // await unlink(filePath); // 删除已合并的分块
+    await unlink(filePath); // 删除已合并的分块
   }
   writeStream.end();
 }

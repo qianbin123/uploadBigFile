@@ -12,13 +12,17 @@
     <button id="submit" onclick="uploadFile()">上传文件</button>
     <script>
       /**
-       * 参考：https://mp.weixin.qq.com/s/-iSpCMaLruerHv7717P0Wg
+       * 参考：
+       * 并发上传：https://mp.weixin.qq.com/s/-iSpCMaLruerHv7717P0Wg
+       * 并发数控制：https://mp.weixin.qq.com/s?__biz=MzI2MjcxNTQ0Nw==&mid=2247490704&idx=1&sn=18976b9c9fe2456172c394f1d9cae88b&scene=21#wechat_redirect
+       * 
        * 实现：
        * 1、文件秒传（借助md5）
        * 2、文件分片（通过Blob.slice）
        * 3、断点续传（通过再次点击上传，后端会把已经上传成功的片段下标ID回传给前端，前端可以根据这个来判断是否还需要上传）
        * 4、并发请求（通过Promise.all实现）
        * 5、进度条（目前代码没加上，不过只需要在每片上传服务器后，返回百分比就行，如果不反回，前端自己计算也没问题）
+       * 6、请求并发数控制（通过asyncPool函数）
       */
       const uploadFileEle = document.querySelector("#uploadFile");
 
@@ -104,22 +108,37 @@
       }
 
       async function asyncPool(poolLimit, array, iteratorFn) {
-        const ret = [];
-        const executing = [];
+        const ret = [];            // 存储所有的异步任务
+        const executing = [];      // 存储正在执行的异步任务
 
-        for (const item of array) {
+        for (const id of array) {
+          // 调用iteratorFn函数创建异步任务
           // 生成Promise对象，并且then内部函数在当前宏任务执行结束前触发
-          const p = Promise.resolve().then(() => iteratorFn(item));
+          const p = Promise.resolve().then(() => {
+            return iteratorFn(id)
+          });
+          // 保存新的异步任务
           ret.push(p);
 
+          // ----- 并发控制（亮点） ------
+          // 当poolLimit值小于或等于总任务个数时，进行并发控制
           if (poolLimit <= array.length) {
-            const e = p.then(() => executing.splice(executing.indexOf(e), 1));
+
+            // 当任务完成后，从正在执行的任务数组中移除已完成的任务
+            const e = p.then(() => {
+              console.log('eshixian', e, executing.indexOf(e));
+              return executing.splice(executing.indexOf(e), 1)
+            });
+            
+            // 保存正在执行的异步任务
             executing.push(e);
             if (executing.length >= poolLimit) {
+              // 等待较快的任务执行完成
               await Promise.race(executing);
             }
           }
         }
+
         // 并发上传文件片段
         return Promise.all(ret);
       }

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <script>
+    async function asyncPool(poolLimit, array, iteratorFn){
+      const ret = [];
+      const executing = [];
+
+      for(const id of array){
+        const p = Promise.resolve().then(() => {
+          return iteratorFn(id)
+        });
+      }
+
+      ret.push(p);
+
+      if(poolLimit <= array.length){
+        const e = p.then(() => {
+          return executing.splice(executing.indexOf(e), 1);
+        });
+
+        executing.push(e);
+        if(executing.length >= poolLimit){
+          // 等待较快的任务执行完成
+          await Promise.race(executing);
+        }
+      }
+
+      return Promise.all(ret);
+    }
+  </script>
+</body>
+</html>

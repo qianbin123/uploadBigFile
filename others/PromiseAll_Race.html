@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <script>
+Promise.all = function(iterators){
+  return new Promise((resolve, reject) => {
+    if(!iterators || iterators.length === 0){
+      resolve([]);
+    }else {
+      let count = 0; // 计数器，用于判断所有任务是否执行完成
+      let result = []; // 结果数组
+      for (let i = 0; i < iterators.length; i++) {
+        // 考虑到iterators[i]可能是普通对象，则统一包装为Promise对象
+        // Promise.resolve中参数为Promise对象，则Promise.resolve将不做任何修改、原封不动地返回这个实例。，参考https://es6.ruanyifeng.com/#docs/promise#Promise-resolve
+        Promise.resolve(iterators[i]).then(
+          (data) => {
+            result[i] = data; // 按顺序保存对应的结果
+            // 当所有任务都执行完成后，再统一返回结果
+            if (++count === iterators.length) {
+              resolve(result);
+            }
+          },
+          (err) => {
+            reject(err); // 任何一个Promise对象执行失败，则调用reject()方法
+            return;
+          }
+        );
+      }
+    }
+  })  
+}
+
+Promise.race = function(iterators){
+  return new Promise((resolve, reject) => {
+    // 对iterators中所有内部对象进行遍历触发，先返回结果的则立即触发resolve/reject
+    for (const iter of iterators) {
+      Promise.resolve(iter)
+        .then((res) => {
+          resolve(res);
+        })
+        .catch((e) => {
+          reject(e);
+        });
+    }
+  });
+}
+  </script>
+</body>
+</html>

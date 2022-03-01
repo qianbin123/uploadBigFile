@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <script>
+    // promise的indexOf
+    // 方法一：   失败
+    // let arr = [
+    //   Promise.resolve().then(() => 10),
+    //   Promise.resolve().then(() => 5),
+    //   Promise.resolve().then(() => 2),
+    // ];
+
+    // console.log(arr.indexOf(Promise.resolve().then(() => 5)));
+
+    // 方法二：   成功
+    // let item1 = Promise.resolve().then(() => 10);
+    // let item2 = Promise.resolve().then(() => 5);
+    // let item3 = Promise.resolve().then(() => 2);
+    // let arr = [
+    //   item1,
+    //   item2,
+    //   item3
+    // ];
+
+    // console.log(arr.indexOf(item3), item3);
+
+    // 方法三： 类似示例
+    // let item1 = new Promise((resolve) => {
+    //   let id = setTimeout(() => {
+    //     return resolve(15000);
+    //   }, 15000)
+    // }).then((res) => {console.log(res); return res});
+
+    // let item2 = new Promise((resolve) => {
+    //   let id = setTimeout(() => {
+    //     return resolve(10000);
+    //   }, 10000)
+    // }).then((res) => {console.log(res); return res});
+
+    // let item3 = new Promise((resolve) => {
+    //   let id = setTimeout(() => {
+    //     return resolve(5000);
+    //   }, 5000)
+    // }).then((res) => {console.log(res); return res});
+
+    // let arr = [
+    //   item1.then((res) => {
+    //     console.log('结束:', res); 
+    //     arr.splice(arr.indexOf(item1), 1);
+    //     console.log('arr:', arr, res);
+    //     return res;
+    //   }),
+    //   item2.then((res) => {
+    //     console.log('结束:', res); 
+    //     arr.splice(arr.indexOf(item1), 1);
+    //     console.log('arr:', arr, res);
+    //     return res;
+    //   }),
+    //   item3.then((res) => {
+    //     console.log('结束:', res); 
+    //     arr.splice(arr.indexOf(item1), 1);
+    //     console.log('arr:', arr, res);
+    //     return res;
+    //   }),
+    // ];
+    // function laiyige(){
+    //   Promise.race(arr).then((res) => {console.log('最先：', res)});
+    //   console.log('初始:', arr);
+    // }
+    // laiyige();
+    // Promise.all(arr).then((res) => {console.log('所有:', arr)})
+
+    // 方法四：
+    // new Promise((resolve) => {console.log(1); resolve(1)}).then(() => {console.log(4); return 1}).then(() => {console.log(7); return 1});
+    // new Promise((resolve) => {console.log(2); resolve(1)}).then(() => {console.log(5); return 1}).then(() => {console.log(8); return 1});
+    // new Promise((resolve) => {console.log(3); resolve(1)}).then(() => {console.log(6); return 1}).then(() => {console.log(9); return 1});
+    // 123456789
+
+    // 方法五：147 258 369
+    // new Promise((resolve) => {
+    //   setTimeout(() => {
+    //     console.log(1); 
+    //     resolve(1);
+    //   }, 5000)
+    // }).then(() => {console.log(4); return 1}).then(() => {console.log(7); return 1});
+    // new Promise((resolve) => {
+    //   setTimeout(() => {
+    //     console.log(2); 
+    //     resolve(1);
+    //   }, 10000)
+    // }).then(() => {console.log(5); return 1}).then(() => {console.log(8); return 1});
+    // new Promise((resolve) => {
+    //   setTimeout(() => {
+    //     console.log(3); 
+    //     resolve(1);
+    //   }, 15000)
+    // }).then(() => {console.log(6); return 1}).then(() => {console.log(9); return 1});
+  </script>
+</body>
+</html>
